@@ -120,6 +120,47 @@ describe("raw material references are tenant-scoped", () => {
  * and adjustments. A partial PUT (only the fields the user changed) must leave them as they are, and
  * a request that tries to set them is refused with 400 rather than silently changing stock.
  */
+describe("raw material names are unique per company (R2P-B13)", () => {
+  beforeAll(async () => {
+    OWNER = await authed("demo.owner");
+  });
+
+  it("refuses a second material with the same name in another letter case, and a rename onto a taken name", async () => {
+    const name = `Duplicate Test ${sfx}`;
+    const first = await createRawMaterial({ materialName: name });
+    const client = await api();
+
+    const dup = await client
+      .post("/api/raw-materials")
+      .set(OWNER.auth)
+      .send({
+        rawMaterialId: `RMDUP-${sfx}`,
+        materialName: name.toUpperCase(),
+        storeId: "ST-RM",
+        baseUom: "KG",
+        minimumStock: 0,
+        reorderLevel: 0,
+        rate: 1,
+        onHandQty: 0,
+      });
+    expect(dup.status, JSON.stringify(dup.body).slice(0, 300)).toBe(409);
+
+    const other = await createRawMaterial({ materialName: `Other Name ${sfx}` });
+    const rename = await client
+      .put(`/api/raw-materials/${encodeURIComponent(other.rawMaterialId)}`)
+      .set(OWNER.auth)
+      .send({ materialName: name.toLowerCase() });
+    expect(rename.status, JSON.stringify(rename.body).slice(0, 300)).toBe(409);
+
+    // Keeping its own name is not a clash.
+    const same = await client
+      .put(`/api/raw-materials/${encodeURIComponent(first.rawMaterialId)}`)
+      .set(OWNER.auth)
+      .send({ materialName: name });
+    expect(same.status, JSON.stringify(same.body).slice(0, 300)).toBe(200);
+  });
+});
+
 describe("raw material update keeps stock", () => {
   beforeAll(async () => {
     OWNER = await authed("demo.owner");

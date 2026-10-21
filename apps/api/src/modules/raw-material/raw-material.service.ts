@@ -31,6 +31,20 @@ class RawMaterialService {
     if (!hsn) throw new ApiError(400, "Unknown HSN code");
   }
 
+  /** R2P-B13: two materials cannot share a name (case-insensitive) within the company. */
+  private async assertNameFree(materialName: string, exceptCode?: string) {
+    const clash = await prisma.rawMaterial.findFirst({
+      where: {
+        materialName: { equals: materialName.trim(), mode: "insensitive" },
+        ...(exceptCode ? { NOT: { rawMaterialId: exceptCode } } : {}),
+      },
+      select: { rawMaterialId: true },
+    });
+    if (clash) {
+      throw new ApiError(409, `A raw material named '${materialName.trim()}' already exists`);
+    }
+  }
+
   async create(data: CreateRawMaterialInput, userId?: string) {
     const existingId = await prisma.rawMaterial.findUnique({
       where: byCode("rawMaterialId", data.rawMaterialId),
@@ -40,6 +54,7 @@ class RawMaterialService {
       throw new ApiError(409, `Raw Material with ID ${data.rawMaterialId} already exists`);
     }
 
+    await this.assertNameFree(data.materialName);
     await this.assertTenantRefs(data);
 
     return prisma.$transaction(async (tx) => {
@@ -188,6 +203,9 @@ class RawMaterialService {
 
   async update(rawMaterialId: string, data: UpdateRawMaterialInput, userId?: string) {
     await this.findById(rawMaterialId);
+    if (data.materialName !== undefined) {
+      await this.assertNameFree(data.materialName, rawMaterialId);
+    }
     await this.assertTenantRefs(data);
 
     const { categoryId, storeId, locationId, hsnCodeId, ...restData } = data;
