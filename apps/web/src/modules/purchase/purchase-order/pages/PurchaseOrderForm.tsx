@@ -923,7 +923,22 @@ const PurchaseOrderForm: React.FC = () => {
         await editPurchaseOrder(id!, payload);
         toast.success("Purchase Order updated successfully!");
       } else {
-        await addPurchaseOrder(payload);
+        // The server always creates a DRAFT (H09); approval is a separate status update.
+        const created = await addPurchaseOrder({ ...payload, status: "DRAFT" });
+        if (submitStatus === "APPROVED") {
+          try {
+            await purchaseOrderService.updateStatus(created.id, "APPROVED");
+          } catch (approveError) {
+            toast.error(
+              getServerErrorMessage(
+                approveError,
+                "Saved as draft, but approval failed. Approve it from the purchase order list."
+              )
+            );
+            navigate("/purchase-orders");
+            return;
+          }
+        }
         toast.success(
           submitStatus === "DRAFT"
             ? "Purchase Order saved as draft!"

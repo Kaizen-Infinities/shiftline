@@ -188,7 +188,8 @@ class PurchaseOrderService {
                 expectedDeliveryDate: new Date(data.expectedDeliveryDate),
                 supplierId: Number(data.supplierId),
                 storeId: data.storeId || null,
-                status: data.status || "DRAFT",
+                // Creation always starts a DRAFT (H09): approval goes through the update path.
+                status: "DRAFT",
                 remarks: data.remarks || null,
                 sameAsBilling: data.sameAsBilling ?? false,
 
