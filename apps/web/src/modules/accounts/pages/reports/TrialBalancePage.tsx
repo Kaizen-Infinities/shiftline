@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { toCsv } from "./trialBalanceCsv";
 import { Download, Printer, RefreshCw, Scale } from "lucide-react";
 import apiClient from "../../../../api/apiClient";
 import { useDetailCache } from "../../../../hooks/useDetailCache";
@@ -199,7 +200,7 @@ export const TrialBalancePage: React.FC = () => {
           "Closing Cr",
         ]
       : ["Account/Group", "Debit Bal.", "Credit Bal."];
-    const rowsArr: string[][] = [cols];
+    const rowsArr: (string | number)[][] = [cols];
     filteredRows.forEach((r) => {
       if (activeConfig.detailed) {
         const opDr = r.openingBalance > 0 ? r.openingBalance : 0;
@@ -207,18 +208,18 @@ export const TrialBalancePage: React.FC = () => {
         rowsArr.push([
           r.name,
           r.group,
-          fmtSigned(opDr),
-          fmtSigned(opCr),
-          fmtSigned(r.totalDebit),
-          fmtSigned(r.totalCredit),
-          fmt(r.debitBalance),
-          fmt(r.creditBalance),
+          opDr,
+          opCr,
+          r.totalDebit,
+          r.totalCredit,
+          r.debitBalance,
+          r.creditBalance,
         ]);
       } else {
-        rowsArr.push([r.name, fmt(r.debitBalance), fmt(r.creditBalance)]);
+        rowsArr.push([r.name, r.debitBalance, r.creditBalance]);
       }
     });
-    const csv = rowsArr.map((r) => r.join(",")).join("\n");
+    const csv = toCsv(rowsArr);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
