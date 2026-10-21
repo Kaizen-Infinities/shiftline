@@ -32,7 +32,7 @@ import LedgerSearchInput, {
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import { useListCache, prependToListCacheByPrefix } from "../../../../hooks/useListCache";
 
-// Each row: D = money LEAVES (Out → credited in journal), C = money ARRIVES (In → debited in journal)
+// Each row is posted as written: D = debit (money comes into the account), C = credit (money goes out)
 interface ContraRow {
   id: number;
   dc: "D" | "C";
@@ -162,16 +162,16 @@ const ContraVoucherAddPage: React.FC = () => {
       return;
     }
 
-    // D = money LEAVES this account (balance decreases) → CREDIT in journal
-    // C = money ARRIVES at this account (balance increases) → DEBIT in journal
+    // D = debit: the account receives the money. C = credit: the money leaves the account.
+    // The Debit and Credit columns on screen show exactly what is posted.
     const items = validRows.map((r) => {
       const amt = parseFloat(r.amount);
-      const isDOut = r.dc === "D"; // D = Out = source = Credit posting
+      const isDebit = r.dc === "D";
       return {
-        debitLedgerId: !isDOut ? parseInt(r.ledgerId, 10) : null, // C = In = Debit
-        creditLedgerId: isDOut ? parseInt(r.ledgerId, 10) : null, // D = Out = Credit
-        debitAmount: !isDOut ? amt : 0,
-        creditAmount: isDOut ? amt : 0,
+        debitLedgerId: isDebit ? parseInt(r.ledgerId, 10) : null,
+        creditLedgerId: !isDebit ? parseInt(r.ledgerId, 10) : null,
+        debitAmount: isDebit ? amt : 0,
+        creditAmount: !isDebit ? amt : 0,
         narration: r.narration || mainNarration || "Contra Entry",
       };
     });
@@ -248,7 +248,7 @@ const ContraVoucherAddPage: React.FC = () => {
       <Tile
         padding="none"
         title="Entries"
-        subtitle="D = money out of the account, C = money into it"
+        subtitle="D (debit) = money into the account, C (credit) = money out of it"
         divider
       >
         <div className="overflow-x-auto" ref={tableRef}>
@@ -415,7 +415,7 @@ const ContraVoucherAddPage: React.FC = () => {
         hints={
           <KeyHints
             hints={[
-              [<Kbd key="dc">D</Kbd>, "= out, C = in"],
+              [<Kbd key="dc">D</Kbd>, "= debit (in), C = credit (out)"],
               [<Kbd key="enter">Enter</Kbd>, "next cell"],
               [
                 <span key="save" className="inline-flex gap-1">
