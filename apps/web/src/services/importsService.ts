@@ -55,6 +55,11 @@ export const importsService = {
       // A 400 on commit carries the report; surface it instead of throwing.
       validateStatus: (s) => (s >= 200 && s < 300) || s === 400,
     });
-    return (res.data?.data ?? res.data) as ImportReport;
+    const report = (res.data?.data ?? res.data) as Partial<ImportReport> | undefined;
+    // A 400 without a report (bad headers, empty file) is an error envelope, not a report.
+    if (res.status === 400 && !Array.isArray(report?.rows)) {
+      throw new Error(res.data?.message || "The import file could not be read");
+    }
+    return report as ImportReport;
   },
 };

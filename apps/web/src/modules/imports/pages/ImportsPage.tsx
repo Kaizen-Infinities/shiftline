@@ -94,7 +94,7 @@ const ImportsPage: React.FC = () => {
     }
   };
 
-  const rows = report?.rows.filter((r) => filter === "all" || r.status === filter) ?? [];
+  const rows = report?.rows?.filter((r) => filter === "all" || r.status === filter) ?? [];
 
   return (
     <div className="sl-page text-ink" data-testid="imports-page">
