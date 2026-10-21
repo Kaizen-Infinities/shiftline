@@ -181,6 +181,68 @@ function getFirstNonEmptyString(...values: Array<string | null | undefined>): st
   return null;
 }
 
+const maskLast4 = (v: unknown) => {
+  const t = typeof v === "string" ? v : "";
+  return t ? `${"X".repeat(Math.max(t.length - 4, 0))}${t.slice(-4)}` : null;
+};
+
+const NEVER_IN_PAYROLL_LIST = [
+  "mobile",
+  "email",
+  "dateOfBirth",
+  "bloodGroup",
+  "maritalStatus",
+  "gender",
+  "personalMobile",
+  "personalEmail",
+  "emergencyContactName",
+  "emergencyContactNumber",
+  "fatherName",
+  "motherName",
+  "spouseName",
+  "guardianName",
+  "guardianRelationship",
+  "drivingLicense",
+  "voterId",
+  "permanentAddressLine1",
+  "permanentAddressLine2",
+  "permanentCity",
+  "permanentState",
+  "permanentPincode",
+  "presentAddressLine1",
+  "presentAddressLine2",
+  "presentCity",
+  "presentState",
+  "presentPincode",
+];
+
+const PAY_FIELDS = [
+  "basicSalary",
+  "grossSalary",
+  "pfNumber",
+  "uanNumber",
+  "esiNumber",
+  "paymentMode",
+  "bankName",
+  "bankBranch",
+  "accountNumber",
+  "ifscCode",
+  "accountHolderName",
+];
+
+/** Narrow one row of the payroll employee list to what the viewer may see (H31). */
+export function redactPayrollEmployee(e: Record<string, any>, canSeePay: boolean) {
+  const out: Record<string, any> = { ...e };
+  for (const k of NEVER_IN_PAYROLL_LIST) delete out[k];
+  out.aadhaarNumber = maskLast4(e.aadhaarNumber);
+  out.panNumber = maskLast4(e.panNumber);
+  if (!canSeePay) {
+    for (const k of PAY_FIELDS) delete out[k];
+    out.payrollConfig = e.payrollConfig ? { salaryType: e.payrollConfig.salaryType } : null;
+  }
+  return out;
+}
+
 export function getEffectivePayrollConfig(emp: any) {
   const pfNumber = getFirstNonEmptyString(emp.payrollConfig?.pfNumber, emp.pfNumber);
   const esiNumber = getFirstNonEmptyString(emp.payrollConfig?.esiNumber, emp.esiNumber);
@@ -251,7 +313,11 @@ interface StatutoryContext {
  * Days of a monthly period on which the employee is not on the rolls: before dateOfJoining and
  * after relievingDate (QA C10). They are not payable, so the caller adds them to LOP.
  */
-function nonEmployedDaysInMonth(period: string, joined: Date | null, relieved: Date | null): number {
+function nonEmployedDaysInMonth(
+  period: string,
+  joined: Date | null,
+  relieved: Date | null
+): number {
   const { start, end } = periodToDateRange(period);
   const iso = (d: Date) => d.toISOString().slice(0, 10);
   const from = joined && iso(joined) > start ? iso(joined) : start;
@@ -685,7 +751,15 @@ class PayrollService {
     return cfg;
   }
 
-  async listEmployeesWithPayroll(category?: string) {
+  /**
+   * The employee list feeds every payroll screen, so any payroll view key opens it (H31). What it
+   * returns is narrowed to the screens' needs: identity documents are masked to the last 4,
+   * personal and family data never leave, and pay and bank details go only to roles that hold
+   * payroll.view or payroll-run.view.
+   */
+  async listEmployeesWithPayroll(category?: string, viewerPermissions: string[] = []) {
+    const canSeePay =
+      viewerPermissions.includes("payroll.view") || viewerPermissions.includes("payroll-run.view");
     const employees = await prisma.employee.findMany({
       where: { status: "active" },
       include: {
@@ -700,10 +774,11 @@ class PayrollService {
       payrollConfig: getEffectivePayrollConfig(e),
     }));
 
-    if (category && category !== "ALL") {
-      return enriched.filter((e) => e.payrollConfig?.salaryType === category);
-    }
-    return enriched;
+    const filtered =
+      category && category !== "ALL"
+        ? enriched.filter((e) => e.payrollConfig?.salaryType === category)
+        : enriched;
+    return filtered.map((e) => redactPayrollEmployee(e, canSeePay));
   }
 
   // ── Attendance ───────────────────────────────────────────────────────────────

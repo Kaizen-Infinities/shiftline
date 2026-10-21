@@ -167,7 +167,13 @@ class StatutoryPayrollService {
   async peekOvertimeQuarterHours(employeeId: bigint, dateStr: string): Promise<number> {
     const { key } = quarterBoundsFor(dateStr);
     const row = await prisma.overtimeQuarterPeriod.findUnique({
-      where: { companyId_employeeId_quarterKey: { companyId: requireTenantId(), employeeId, quarterKey: key } },
+      where: {
+        companyId_employeeId_quarterKey: {
+          companyId: requireTenantId(),
+          employeeId,
+          quarterKey: key,
+        },
+      },
       select: { hoursAccrued: true },
     });
     return row ? n2(row.hoursAccrued) : 0;
@@ -187,7 +193,13 @@ class StatutoryPayrollService {
     const { key, start, end } = quarterBoundsFor(dateStr);
     const breached = totalHours > QUARTERLY_OVERTIME_CAP;
     const row = await prisma.overtimeQuarterPeriod.upsert({
-      where: { companyId_employeeId_quarterKey: { companyId: requireTenantId(), employeeId, quarterKey: key } },
+      where: {
+        companyId_employeeId_quarterKey: {
+          companyId: requireTenantId(),
+          employeeId,
+          quarterKey: key,
+        },
+      },
       update: { hoursAccrued: n2(totalHours), breached: breached ? true : undefined },
       create: {
         companyId: requireTenantId(),
@@ -222,7 +234,11 @@ class StatutoryPayrollService {
     const declared = new Set(declarations.map((d) => d.employeeId.toString()));
     return employees
       .filter((e) => !declared.has(e.id.toString()))
-      .map((e) => ({ employeeId: e.id.toString(), employeeCode: e.empCode, employeeName: e.fullName }));
+      .map((e) => ({
+        employeeId: e.id.toString(),
+        employeeCode: e.empCode,
+        employeeName: e.fullName,
+      }));
   }
 
   /**

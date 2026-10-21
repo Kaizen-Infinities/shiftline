@@ -27,7 +27,10 @@ class PayrollController {
 
   listEmployees = asyncHandler(async (req: Request, res: Response) => {
     const { category } = req.query as { category?: string };
-    const employees = await payrollService.listEmployeesWithPayroll(category);
+    const employees = await payrollService.listEmployeesWithPayroll(
+      category,
+      req.user?.permissions ?? []
+    );
     res.json(new ApiResponse("Employees fetched", employees));
   });
 
